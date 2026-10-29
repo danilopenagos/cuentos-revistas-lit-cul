@@ -1,0 +1,8 @@
+# Generado por build.py
+site/data/
+reports/
+__pycache__/
+.DS_Store
+
+.vscode/
+.idea/

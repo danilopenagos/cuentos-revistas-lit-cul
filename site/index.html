@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cuentos en revistas</title>
+<meta name="description" content="Base de datos consultable de cuentos hispanoamericanos publicados en revistas literarias y culturales.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: catálogo de fichas — cabecera fija con navegación, columna de lectura ancha, tablas para listados */
+:root {
+  --paper: #f5f6f3;
+  --card: #ffffff;
+  --ink: #1c2230;
+  --muted: #5d6573;
+  --rule: #d9ddd6;
+  --accent: #23517a;
+  --accent-soft: #e3ebf2;
+  --warn: #8a5a00;
+  --warn-soft: #fbf1dc;
+  --display: "Spectral", Georgia, "Times New Roman", serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --radius: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #14171d; --card: #1b1f27; --ink: #e6e8ec; --muted: #9aa2ae; --rule: #2d333d;
+    --accent: #8db8de; --accent-soft: #1f2e3d; --warn: #e2b45c; --warn-soft: #2e2615;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #14171d; --card: #1b1f27; --ink: #e6e8ec; --muted: #9aa2ae; --rule: #2d333d;
+  --accent: #8db8de; --accent-soft: #1f2e3d; --warn: #e2b45c; --warn-soft: #2e2615;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--paper); color: var(--ink);
+  font: 15px/1.55 var(--body);
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+  z-index: 10; background: var(--card);
+}
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.wrap {
+  max-width: 1040px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+header.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--card); border-bottom: 1px solid var(--rule);
+}
+header.top .wrap {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 24px; padding-block: 12px;
+}
+.brand { font: 600 1.25rem/1.2 var(--display); color: var(--ink); text-decoration: none; }
+.brand small { font: 400 0.8rem var(--body); color: var(--muted); margin-left: 8px; }
+nav.main { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 0.9rem; }
+nav.main a { text-decoration: none; color: var(--muted); padding-block: 2px; border-bottom: 2px solid transparent; }
+nav.main a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
+main { padding-block: 28px 64px; }
+h1, h2 { font-family: var(--display); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.15; }
+h2 { font-size: 1.2rem; margin-top: 32px; margin-bottom: 10px; }
+.crumbs { font-size: 0.85rem; color: var(--muted); margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.crumbs span[aria-hidden] { color: var(--rule); }
+.lede { color: var(--muted); max-width: 65ch; margin: 8px 0 0; }
+.label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--mono); font-size: 0.85em; }
+.stats { display: flex; flex-wrap: wrap; gap: 8px 28px; margin-top: 18px; }
+.stats div { display: flex; flex-direction: column; }
+.stats strong { font: 600 1.5rem var(--display); font-variant-numeric: tabular-nums; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 20px; }
+.tile {
+  display: flex; flex-direction: column; gap: 4px; padding: 16px; text-decoration: none; color: var(--ink);
+  background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius);
+  transition: border-color .15s;
+}
+.tile:hover { border-color: var(--accent); }
+.tile .name { font: 600 1.15rem/1.25 var(--display); }
+.tile .meta { font-size: 0.85rem; color: var(--muted); }
+.tile.unset .name { font-style: italic; color: var(--muted); }
+
+.tablebox { overflow-x: auto; background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); }
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+tbody tr:last-child td { border-bottom: 0; }
+th { font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); white-space: nowrap; }
+th button { all: unset; cursor: pointer; }
+th button:focus-visible { outline: 2px solid var(--accent); }
+th[aria-sort="ascending"] button::after { content: " ↑"; }
+th[aria-sort="descending"] button::after { content: " ↓"; }
+td.r, th.r { text-align: right; }
+tr.issue-head td { background: var(--paper); font-size: 0.8rem; color: var(--muted); padding-block: 6px; }
+.untitled { font-style: italic; color: var(--muted); }
+.title-cell a { font-family: var(--display); font-size: 1.02rem; }
+
+.chip {
+  display: inline-block; font-size: 0.72rem; padding: 1px 7px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent); white-space: nowrap;
+}
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+
+dl.ficha { display: grid; grid-template-columns: minmax(130px, 180px) 1fr; gap: 0; margin: 20px 0 0;
+  background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); }
+dl.ficha dt, dl.ficha dd { padding: 10px 14px; border-bottom: 1px solid var(--rule); margin: 0; min-width: 0; }
+dl.ficha dt { color: var(--muted); font-size: 0.85rem; }
+dl.ficha dt:last-of-type, dl.ficha dd:last-of-type { border-bottom: 0; }
+@media (max-width: 520px) {
+  dl.ficha { grid-template-columns: 1fr; }
+  dl.ficha dt { border-bottom: 0; padding-bottom: 0; }
+}
+.cite { margin-top: 20px; padding: 14px; background: var(--card); border: 1px dashed var(--rule); border-radius: var(--radius); font-size: 0.88rem; }
+.cite p { margin: 6px 0 10px; }
+
+form.search { display: grid; gap: 14px; margin-top: 18px; padding: 16px; background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); }
+.qrow { display: flex; gap: 8px; flex-wrap: wrap; }
+.qrow input { flex: 1 1 260px; min-width: 0; }
+.facets { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.facets label, .range label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--muted); }
+.range { display: flex; flex-wrap: wrap; gap: 12px; }
+.range fieldset { border: 0; margin: 0; padding: 0; display: flex; gap: 8px; align-items: flex-end; }
+.range legend { font-size: 0.8rem; color: var(--muted); padding: 0; margin-bottom: 4px; }
+.range input { width: 90px; }
+input, select {
+  font: inherit; font-size: 0.92rem; color: var(--ink); background: var(--paper);
+  border: 1px solid var(--rule); border-radius: 4px; padding: 7px 9px;
+}
+button.btn {
+  font: 500 0.88rem var(--body); cursor: pointer; border-radius: 4px; padding: 7px 14px;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--card);
+}
+button.btn.ghost { background: transparent; color: var(--accent); }
+.resbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 20px 0 8px; }
+.range label.check { flex-direction: row; align-items: center; gap: 6px; align-self: flex-end; padding-bottom: 8px; }
+.range label.check input { width: auto; }
+.digital { margin: 14px 0 0; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.note { font-size: 0.82rem; color: var(--muted); }
+.empty { padding: 28px; text-align: center; color: var(--muted); }
+.alpha { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 16px 0; font-family: var(--mono); font-size: 0.85rem; }
+.datalist { display: grid; gap: 10px; margin-top: 16px; max-width: 70ch; }
+.datalist div { padding: 12px 14px; background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); }
+.datalist p { margin: 4px 0 0; color: var(--muted); font-size: 0.88rem; }
+footer { border-top: 1px solid var(--rule); padding-block: 18px; font-size: 0.8rem; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#inicio">Cuentos en revistas<small>Hispanoamérica</small></a>
+    <nav class="main" aria-label="Secciones">
+      <a href="#inicio" data-sec="inicio">Países</a>
+      <a href="#revistas" data-sec="revistas">Revistas</a>
+      <a href="#autores" data-sec="autores">Autores</a>
+      <a href="#buscar" data-sec="buscar">Buscar</a>
+      <a href="#datos" data-sec="datos">Datos</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap" id="app" tabindex="-1"><p class="note">Cargando datos…</p></main>
+<footer><div class="wrap" id="foot"></div></footer>
+
+<script>
+(() => {
+  "use strict";
+  const app = document.getElementById("app");
+  let DB = null, IX = {};
+  const search = { q: "", pais_revista: "", revista: "", pais_autor: "", sexo: "", rubrica: "", idioma: "",
+                   pmin: "", pmax: "", amin: "", amax: "", digital: false, sort: "fecha", dir: 1 };
+
+  // ---------- utilidades
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const norm = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const fmtPag = n => n == null ? "—" : n.toLocaleString("es", { maximumFractionDigits: 2 });
+  const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  function fmtFecha(c) {
+    if (!c.fecha) return "—";
+    const [y, m, d] = c.fecha.split("-");
+    if (c.fecha_precision === "año" || !m) return y;
+    if (c.fecha_precision === "mes" || !d) return `${MESES[+m - 1]} ${y}`;
+    return `${+d} ${MESES[+m - 1]} ${y}`;
+  }
+  const titulo = c => c.titulo ? esc(c.titulo) : '<span class="untitled">[Sin título]</span>';
+  const plural = (n, s, p) => `${n.toLocaleString("es")} ${n === 1 ? s : p}`;
+  const linkAutor = a => `<a href="#autor-${a.id}">${esc(a.nombre)}</a>`;
+  const linkRevista = r => `<a href="#revista-${r.id}">${esc(r.titulo)}</a>`;
+  const crumbs = parts => `<div class="crumbs">${parts.map((p, i) => (i ? '<span aria-hidden="true">/</span>' : "") + p).join("")}</div>`;
+  const digLink = r => r.url_digital ? `<a href="${esc(r.url_digital)}" rel="noopener">${esc(r.repositorio || "Versión digital")}</a>` : "";
+  const qidLink = q => q ? `<a href="https://www.wikidata.org/wiki/${esc(q)}" rel="noopener">${esc(q)}</a>` : "";
+  const viafLink = v => v ? `<a href="https://viaf.org/viaf/${esc(v)}" rel="noopener">${esc(v)}</a>` : "";
+  const byPag = (a, b) => (a.fasciculo || "").localeCompare(b.fasciculo || "", "es", { numeric: true }) || (a.pag_ini ?? 0) - (b.pag_ini ?? 0);
+
+  // ---------- tabla de cuentos reutilizable
+  function tablaCuentos(lista, { conRevista = true, conAutor = true, agruparFasciculo = false } = {}) {
+    if (!lista.length) return '<div class="tablebox"><p class="empty">No hay cuentos que coincidan.</p></div>';
+    const cols = 3 + (conAutor ? 1 : 0) + (conRevista ? 1 : 0);
+    let filas = "", ultimo = null;
+    for (const c of lista) {
+      const a = IX.autor[c.autor_id], r = IX.revista[c.revista_id];
+      if (agruparFasciculo && c.fasciculo !== ultimo) {
+        ultimo = c.fasciculo;
+        filas += `<tr class="issue-head"><td colspan="${cols}">N.º ${esc(c.fasciculo || "s. n.")} · ${fmtFecha(c)}</td></tr>`;
+      }
+      const firma = c.firma && c.firma !== a.nombre ? ` <span class="note">(firma: ${esc(c.firma)})</span>` : "";
+      filas += `<tr>
+        <td class="title-cell"><a href="#cuento-${c.id}">${titulo(c)}</a></td>
+        ${conAutor ? `<td>${linkAutor(a)}${firma}</td>` : ""}
+        ${conRevista ? `<td>${linkRevista(r)} <span class="note">n.º ${esc(c.fasciculo)}</span></td>` : ""}
+        <td class="num">${agruparFasciculo ? "p. " + esc(c.paginacion) : fmtFecha(c)}</td>
+        <td class="r num">${fmtPag(c.n_paginas)}</td></tr>`;
+    }
+    return `<div class="tablebox"><table><thead><tr><th>Título</th>${conAutor ? "<th>Autor</th>" : ""}${conRevista ? "<th>Revista</th>" : ""}
+      <th>${agruparFasciculo ? "Páginas" : "Fecha"}</th><th class="r">Extensión (pág.)</th></tr></thead><tbody>${filas}</tbody></table></div>`;
+  }
+
+  // ---------- vistas
+  const V = {};
+  V.inicio = () => {
+    const m = DB.meta;
+    return `<h1>Cuentos hispanoamericanos en revistas</h1>
+      <p class="lede">Elige un país para ver las revistas publicadas allí y, dentro de cada revista, los cuentos de cada número.</p>
+      <div class="stats">
+        <div><strong>${m.n_cuentos.toLocaleString("es")}</strong><span class="label">cuentos</span></div>
+        <div><strong>${m.n_autores.toLocaleString("es")}</strong><span class="label">autores</span></div>
+        <div><strong>${m.n_revistas.toLocaleString("es")}</strong><span class="label">revistas</span></div>
+        <div><strong>${m.n_paises.toLocaleString("es")}</strong><span class="label">países</span></div>
+      </div>
+      <h2>Países de publicación</h2>
+      <div class="grid">${DB.paises.map(p => `
+        <a class="tile${p.nombre === "Sin asignar" ? " unset" : ""}" href="#pais-${p.id}">
+          <span class="name">${esc(p.nombre)}</span>
+          <span class="meta num">${plural(p.n_revistas, "revista", "revistas")} · ${plural(p.n_cuentos, "cuento", "cuentos")}</span>
+          ${p.nombre === "Sin asignar" ? '<span class="chip warn">Falta el país en revistas.csv</span>' : ""}
+        </a>`).join("")}</div>`;
+  };
+
+  V.pais = id => {
+    const p = IX.pais[id];
+    if (!p) return V.noencontrado();
+    const revs = DB.revistas.filter(r => r.pais === p.nombre);
+    return `${crumbs(['<a href="#inicio">Países</a>', esc(p.nombre)])}
+      <h1>${esc(p.nombre)}</h1>
+      <p class="lede">${plural(revs.length, "revista", "revistas")} · ${plural(p.n_cuentos, "cuento", "cuentos")}</p>
+      <div class="grid">${revs.map(r => `
+        <a class="tile" href="#revista-${r.id}">
+          <span class="name">${esc(r.titulo)}</span>
+          <span class="meta">${esc([r.ciudad, [r.inicio, r.fin].filter(Boolean).join("–")].filter(Boolean).join(" · ") || "Ciudad y años sin registrar")}</span>
+          <span class="meta num">${plural(r.n_cuentos, "cuento", "cuentos")}</span>
+          ${r.url_digital ? '<span><span class="chip">digitalizada</span></span>' : ""}
+        </a>`).join("")}</div>`;
+  };
+
+  V.revistas = () => {
+    const filas = DB.revistas.map(r => `<tr><td class="title-cell">${linkRevista(r)}</td>
+      <td>${esc(r.ciudad) || "—"}</td><td><a href="#pais-${IX.paisId(r.pais)}">${esc(r.pais)}</a></td>
+      <td class="num">${esc([r.inicio, r.fin].filter(Boolean).join("–")) || "—"}</td><td>${digLink(r) || "—"}</td><td class="r num">${r.n_cuentos}</td></tr>`).join("");
+    return `<h1>Revistas</h1><p class="lede">${plural(DB.revistas.length, "revista", "revistas")} en el corpus.</p>
+      <div class="tablebox"><table><thead><tr><th>Revista</th><th>Ciudad</th><th>País</th><th>Años</th><th>Digitalización</th><th class="r">Cuentos</th></tr></thead>
+      <tbody>${filas}</tbody></table></div>`;
+  };
+
+  V.revista = id => {
+    const r = IX.revista[id];
+    if (!r) return V.noencontrado();
+    const cs = DB.cuentos.filter(c => c.revista_id === id).sort(byPag);
+    const nums = new Set(cs.map(c => c.fasciculo)).size;
+    return `${crumbs(['<a href="#inicio">Países</a>', `<a href="#pais-${IX.paisId(r.pais)}">${esc(r.pais)}</a>`, esc(r.titulo)])}
+      <h1>${esc(r.titulo)}</h1>
+      <p class="lede">${esc([r.ciudad, r.pais !== "Sin asignar" ? r.pais : "", [r.inicio, r.fin].filter(Boolean).join("–")].filter(Boolean).join(" · "))}
+        ${r.ciudad || r.pais !== "Sin asignar" ? " · " : ""}${plural(cs.length, "cuento", "cuentos")} en ${plural(nums, "número", "números")}
+        ${r.wikidata_qid ? " · Wikidata " + qidLink(r.wikidata_qid) : ""}</p>
+      ${r.url_digital ? `<p class="digital"><span class="label">Consultar la revista</span> ${digLink(r)}</p>` : ""}
+      <h2>Cuentos por número</h2>
+      ${tablaCuentos(cs, { conRevista: false, agruparFasciculo: true })}`;
+  };
+
+  V.cuento = id => {
+    const c = IX.cuento[id];
+    if (!c) return V.noencontrado();
+    const a = IX.autor[c.autor_id], r = IX.revista[c.revista_id];
+    const firma = c.firma ? esc(c.firma) + (c.firma !== a.nombre ? ' <span class="chip">seudónimo</span>' : "") : "—";
+    const flags = [
+      c.discontinua ? '<span class="chip warn">paginación discontinua</span>' : "",
+      !c.titulo ? '<span class="chip warn">sin título en la fuente</span>' : "",
+    ].join(" ");
+    const cita = `${a.nombre}${c.firma && c.firma !== a.nombre ? ` [${c.firma}]` : ""}: «${c.titulo || "[Sin título]"}», en: ${r.titulo}${r.ciudad ? ` (${r.ciudad})` : ""}, n.º ${c.fasciculo}, ${fmtFecha(c)}, p. ${c.paginacion}.`;
+    return `${crumbs(['<a href="#inicio">Países</a>', `<a href="#pais-${IX.paisId(r.pais)}">${esc(r.pais)}</a>`, linkRevista(r), "n.º " + esc(c.fasciculo)])}
+      <span class="label">Cuento</span>
+      <h1>${titulo(c)}</h1>
+      <p class="lede">${linkAutor(a)} ${flags}</p>
+      <dl class="ficha">
+        <dt>Autor</dt><dd>${linkAutor(a)}${a.pais_origen ? ` <span class="note">(${esc(a.pais_origen)})</span>` : ""}</dd>
+        <dt>Firma en la revista</dt><dd>${firma}</dd>
+        <dt>Revista</dt><dd>${linkRevista(r)}${r.ciudad ? ", " + esc(r.ciudad) : ""}</dd>
+        <dt>Versión digital</dt><dd>${digLink(r) || '<span class="note">sin digitalización registrada</span>'}</dd>
+        <dt>Número · fecha</dt><dd class="num">n.º ${esc(c.fasciculo)} · ${fmtFecha(c)}</dd>
+        <dt>Páginas</dt><dd class="num">${esc(c.paginacion) || "—"}</dd>
+        <dt>Extensión</dt><dd class="num">${fmtPag(c.n_paginas)} pág. <span class="note">(superficie de texto medida, no el rango de páginas)</span></dd>
+        <dt>Rúbrica de la revista</dt><dd>${esc(c.rubrica) || '<span class="note">sin registrar</span>'}</dd>
+        <dt>Tipología</dt><dd>${esc(c.tipologia) || "—"}</dd>
+        <dt>Idioma</dt><dd>${esc(c.idioma) || "—"}</dd>
+        <dt>Identificador</dt><dd class="mono">${esc(c.id)}</dd>
+      </dl>
+      <div class="cite"><span class="label">Referencia</span><p id="cita">${esc(cita)}</p>
+        <button class="btn ghost" type="button" id="copycite">Copiar referencia</button></div>`;
+  };
+
+  V.autores = () => {
+    const letras = [...new Set(DB.autores.map(a => norm(a.nombre)[0].toUpperCase()))].sort();
+    let html = `<h1>Autores</h1><p class="lede">${plural(DB.autores.length, "autor", "autores")}. Los seudónimos se muestran junto al nombre.</p>
+      <nav class="alpha" aria-label="Índice alfabético">${letras.map(l => `<a href="#autores" data-jump="${l}">${l}</a>`).join("")}</nav>`;
+    const filas = DB.autores.map(a => `<tr data-letter="${norm(a.nombre)[0].toUpperCase()}">
+      <td>${linkAutor(a)}${a.seudonimos.length ? ` <span class="note">(${esc(a.seudonimos.join(", "))})</span>` : ""}</td>
+      <td>${esc(a.pais_origen) || "—"}</td><td>${esc(a.sexo) || "—"}</td><td class="r num">${a.n_cuentos}</td></tr>`).join("");
+    return html + `<div class="tablebox"><table><thead><tr><th>Nombre</th><th>País de origen</th><th>Sexo</th><th class="r">Cuentos</th></tr></thead>
+      <tbody>${filas}</tbody></table></div>`;
+  };
+
+  V.autor = id => {
+    const a = IX.autor[id];
+    if (!a) return V.noencontrado();
+    const cs = DB.cuentos.filter(c => c.autor_id === id).sort((x, y) => (x.fecha || "").localeCompare(y.fecha || ""));
+    const ids = [a.wikidata_qid && "Wikidata " + qidLink(a.wikidata_qid), a.viaf && "VIAF " + viafLink(a.viaf)].filter(Boolean).join(" · ");
+    return `${crumbs(['<a href="#autores">Autores</a>', esc(a.nombre)])}
+      <span class="label">Autor</span><h1>${esc(a.nombre)}</h1>
+      <dl class="ficha">
+        <dt>País de origen</dt><dd>${esc(a.pais_origen) || '<span class="note">sin registrar</span>'}</dd>
+        <dt>Sexo</dt><dd>${esc(a.sexo) || '<span class="note">sin registrar</span>'}</dd>
+        <dt>Seudónimos</dt><dd>${esc(a.seudonimos.join(", ")) || "—"}</dd>
+        <dt>Identificadores</dt><dd>${ids || '<span class="note">sin enlazar (Wikidata, VIAF)</span>'}</dd>
+      </dl>
+      <h2>${plural(cs.length, "cuento", "cuentos")}</h2>
+      ${tablaCuentos(cs, { conAutor: false })}`;
+  };
+
+  // ---------- búsqueda
+  function opciones(valores, sel) {
+    return '<option value="">Todos</option>' + [...valores].filter(Boolean).sort((a, b) => a.localeCompare(b, "es"))
+      .map(v => `<option${v === sel ? " selected" : ""}>${esc(v)}</option>`).join("");
+  }
+  function filtrar() {
+    const q = norm(search.q).trim();
+    const num = v => v === "" ? null : Number(v);
+    const [pmin, pmax, amin, amax] = [search.pmin, search.pmax, search.amin, search.amax].map(num);
+    return DB.cuentos.filter(c => {
+      const a = IX.autor[c.autor_id], r = IX.revista[c.revista_id];
+      if (q && !c._txt.includes(q)) return false;
+      if (search.pais_revista && r.pais !== search.pais_revista) return false;
+      if (search.revista && r.titulo !== search.revista) return false;
+      if (search.pais_autor && a.pais_origen !== search.pais_autor) return false;
+      if (search.sexo && a.sexo !== search.sexo) return false;
+      if (search.rubrica && c.rubrica !== search.rubrica) return false;
+      if (search.idioma && c.idioma !== search.idioma) return false;
+      if (search.digital && !r.url_digital) return false;
+      if (pmin != null && !(c.n_paginas >= pmin)) return false;
+      if (pmax != null && !(c.n_paginas <= pmax)) return false;
+      if (amin != null && !(c.anio >= amin)) return false;
+      if (amax != null && !(c.anio <= amax)) return false;
+      return true;
+    });
+  }
+  const SORTS = {
+    titulo: c => norm(c.titulo), autor: c => norm(IX.autor[c.autor_id].nombre),
+    revista: c => norm(IX.revista[c.revista_id].titulo), fecha: c => c.fecha || "", n_paginas: c => c.n_paginas ?? -1,
+  };
+  function resultados() {
+    const lista = filtrar();
+    const k = SORTS[search.sort];
+    lista.sort((x, y) => { const a = k(x), b = k(y); return (a < b ? -1 : a > b ? 1 : 0) * search.dir; });
+    const th = (key, txt, cls = "") => `<th class="${cls}" aria-sort="${search.sort === key ? (search.dir > 0 ? "ascending" : "descending") : "none"}"><button type="button" data-sort="${key}">${txt}</button></th>`;
+    const filas = lista.map(c => {
+      const a = IX.autor[c.autor_id], r = IX.revista[c.revista_id];
+      return `<tr><td class="title-cell"><a href="#cuento-${c.id}">${titulo(c)}</a></td><td>${linkAutor(a)}</td>
+        <td>${linkRevista(r)} <span class="note">n.º ${esc(c.fasciculo)}</span></td><td class="num">${fmtFecha(c)}</td>
+        <td class="r num">${fmtPag(c.n_paginas)}</td></tr>`;
+    }).join("");
+    document.getElementById("res").innerHTML = `
+      <div class="resbar"><strong class="num">${plural(lista.length, "resultado", "resultados")}</strong>
+        <span><button class="btn ghost" type="button" id="copycsv"${lista.length ? "" : " disabled"}>Copiar resultados (CSV)</button>
+        <span class="note" id="copymsg" role="status"></span></span></div>
+      ${lista.length ? `<div class="tablebox"><table><thead><tr>${th("titulo", "Título")}${th("autor", "Autor")}${th("revista", "Revista")}${th("fecha", "Fecha")}${th("n_paginas", "Extensión (pág.)", "r")}</tr></thead><tbody>${filas}</tbody></table></div>`
+        : '<div class="tablebox"><p class="empty">Ningún cuento cumple estos criterios. Prueba a quitar algún filtro.</p></div>'}`;
+    document.getElementById("copycsv")?.addEventListener("click", () => copiarCSV(lista));
+  }
+  function copiarCSV(lista) {
+    const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const cab = ["id", "titulo", "autor", "firma", "revista", "ciudad", "pais_revista", "fasciculo", "fecha", "paginacion", "n_paginas", "rubrica", "idioma", "url_digital"];
+    const rows = lista.map(c => { const a = IX.autor[c.autor_id], r = IX.revista[c.revista_id];
+      return [c.id, c.titulo, a.nombre, c.firma, r.titulo, r.ciudad, r.pais, c.fasciculo, c.fecha, c.paginacion, c.n_paginas, c.rubrica, c.idioma, r.url_digital].map(q).join(","); });
+    const txt = [cab.join(","), ...rows].join("\n");
+    const msg = document.getElementById("copymsg");
+    navigator.clipboard?.writeText(txt).then(() => { msg.textContent = " Copiado."; },
+      () => { msg.textContent = " No se pudo copiar automáticamente."; }) ?? (msg.textContent = " No se pudo copiar automáticamente.");
+  }
+  V.buscar = () => {
+    const S = search, aut = DB.autores, rev = DB.revistas;
+    return `<h1>Buscar cuentos</h1>
+      <p class="lede">Busca por título, autor, seudónimo o firma, y combina filtros. Las tildes no importan.</p>
+      <form class="search" id="sform" role="search">
+        <div class="qrow"><input id="f-q" name="q" type="search" placeholder="Título, autor o seudónimo" value="${esc(S.q)}" aria-label="Texto de búsqueda">
+          <button class="btn ghost" type="reset" id="f-reset">Limpiar filtros</button></div>
+        <div class="facets">
+          <label>País de la revista<select id="f-pais_revista" name="pais_revista">${opciones(new Set(rev.map(r => r.pais)), S.pais_revista)}</select></label>
+          <label>Revista<select id="f-revista" name="revista">${opciones(new Set(rev.map(r => r.titulo)), S.revista)}</select></label>
+          <label>País del autor<select id="f-pais_autor" name="pais_autor">${opciones(new Set(aut.map(a => a.pais_origen)), S.pais_autor)}</select></label>
+          <label>Sexo del autor<select id="f-sexo" name="sexo">${opciones(new Set(aut.map(a => a.sexo)), S.sexo)}</select></label>
+          <label>Rúbrica de la revista<select id="f-rubrica" name="rubrica">${opciones(new Set(DB.cuentos.map(c => c.rubrica)), S.rubrica)}</select></label>
+          <label>Idioma<select id="f-idioma" name="idioma">${opciones(new Set(DB.cuentos.map(c => c.idioma)), S.idioma)}</select></label>
+        </div>
+        <div class="range">
+          <fieldset><legend>Extensión (páginas)</legend>
+            <label>desde<input id="f-pmin" name="pmin" type="number" step="0.1" min="0" value="${esc(S.pmin)}"></label>
+            <label>hasta<input id="f-pmax" name="pmax" type="number" step="0.1" min="0" value="${esc(S.pmax)}"></label></fieldset>
+          <fieldset><legend>Año de publicación</legend>
+            <label>desde<input id="f-amin" name="amin" type="number" step="1" value="${esc(S.amin)}"></label>
+            <label>hasta<input id="f-amax" name="amax" type="number" step="1" value="${esc(S.amax)}"></label></fieldset>
+          <label class="check"><input id="f-digital" name="digital" type="checkbox"${S.digital ? " checked" : ""}> Solo revistas digitalizadas</label>
+        </div>
+      </form>
+      <div id="res"></div>`;
+  };
+
+  V.datos = () => {
+    const sqlite = new URL("data/cuentos.sqlite", location.href).href;
+    const lite = "https://lite.datasette.io/?url=" + encodeURIComponent(sqlite) + "#/cuentos/cuentos_completo";
+    return `<h1>Datos abiertos</h1>
+      <p class="lede">Todo lo que muestra esta web se genera a partir de los mismos archivos, que puedes descargar y reutilizar.</p>
+      <div class="datalist">
+        <div><a href="data/db.json">db.json</a><p>Países, revistas, autores y cuentos con sus identificadores. Es el archivo que usa esta interfaz.</p></div>
+        <div><a href="data/cuentos.sqlite">cuentos.sqlite</a><p>Base de datos SQLite con las tablas <span class="mono">cuentos</span>, <span class="mono">autores</span>, <span class="mono">revistas</span> y la vista <span class="mono">cuentos_completo</span>.</p></div>
+        <div><a href="${esc(lite)}" rel="noopener">Consultar con Datasette Lite</a><p>Facetas, filtros y SQL libre directamente en el navegador. Funciona desde el sitio publicado.</p></div>
+      </div>
+      <h2>Sobre las cifras</h2>
+      <p class="lede">La extensión mide la superficie de texto en páginas de la revista, no el rango de paginación. No es comparable entre revistas de formato distinto; la medida en palabras se añadirá más adelante.</p>`;
+  };
+
+  V.noencontrado = () => `<h1>No encontrado</h1><p class="lede">Esa ficha no existe o ha cambiado de identificador. <a href="#inicio">Volver al inicio</a>.</p>`;
+
+  // ---------- router (hash simple: #seccion o #tipo-id)
+  function route() {
+    const h = decodeURIComponent(location.hash.slice(1)) || "inicio";
+    const m = h.match(/^(pais|revista|cuento|autor)-(.+)$/);
+    const sec = m ? m[1] : h;
+    const html = m ? V[m[1]](m[2]) : (V[h] ? V[h]() : V.noencontrado());
+    app.innerHTML = html;
+    const navSec = { pais: "inicio", revista: "revistas", cuento: "inicio", autor: "autores" }[sec] || sec;
+    document.querySelectorAll("nav.main a").forEach(a => { if (a.dataset.sec === navSec) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+    const t = app.querySelector("h1");
+    document.title = (t && h !== "inicio" ? t.textContent.trim() + " · " : "") + "Cuentos en revistas";
+    if (sec === "buscar") wireSearch();
+    window.scrollTo(0, 0);
+  }
+
+  function wireSearch() {
+    const form = document.getElementById("sform");
+    const sync = e => {
+      const el = e.target;
+      if (!el.name) return;
+      search[el.name] = el.type === "checkbox" ? el.checked : el.value;
+      resultados();
+    };
+    form.addEventListener("input", sync);
+    form.addEventListener("change", sync);
+    form.addEventListener("submit", e => e.preventDefault());
+    form.addEventListener("reset", () => {
+      Object.assign(search, { q: "", pais_revista: "", revista: "", pais_autor: "", sexo: "", rubrica: "", idioma: "", pmin: "", pmax: "", amin: "", amax: "", digital: false });
+      setTimeout(resultados, 0);
+    });
+    resultados();
+  }
+
+  app.addEventListener("click", e => {
+    const s = e.target.closest("[data-sort]");
+    if (s) { const k = s.dataset.sort; search.dir = search.sort === k ? -search.dir : 1; search.sort = k; resultados(); return; }
+    const j = e.target.closest("[data-jump]");
+    if (j) { e.preventDefault(); app.querySelector(`tr[data-letter="${j.dataset.jump}"]`)?.scrollIntoView({ block: "center" }); return; }
+    if (e.target.id === "copycite") {
+      const txt = document.getElementById("cita").textContent;
+      navigator.clipboard?.writeText(txt).then(() => { e.target.textContent = "Copiada"; }, () => {
+        const r = document.createRange(); r.selectNodeContents(document.getElementById("cita"));
+        const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      });
+    }
+  });
+
+  // ---------- carga
+  fetch("data/db.json").then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(db => {
+    DB = db;
+    const by = (arr, k = "id") => Object.fromEntries(arr.map(x => [x[k], x]));
+    IX.pais = by(db.paises); IX.revista = by(db.revistas); IX.autor = by(db.autores); IX.cuento = by(db.cuentos);
+    const pid = Object.fromEntries(db.paises.map(p => [p.nombre, p.id]));
+    IX.paisId = nombre => pid[nombre];
+    for (const c of db.cuentos) {
+      const a = IX.autor[c.autor_id];
+      c._txt = norm([c.titulo, a.nombre, a.seudonimos.join(" "), c.firma].join(" "));
+    }
+    document.getElementById("foot").innerHTML =
+      `Datos generados el ${new Date(db.meta.generado).toLocaleDateString("es")} · <a href="#datos">Descargar los datos</a>`;
+    window.addEventListener("hashchange", route);
+    route();
+  }).catch(() => {
+    app.innerHTML = `<h1>No se pudieron cargar los datos</h1><p class="lede">Falta <span class="mono">data/db.json</span>. Ejecuta <span class="mono">python build.py</span> y vuelve a cargar la página. Si abres el archivo directamente desde el disco, sírvelo con <span class="mono">python -m http.server</span> desde la carpeta <span class="mono">site</span>.</p>`;
+  });
+})();
+</script>
+</body>
+</html>
